@@ -1,0 +1,26 @@
+$schema: https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json
+
+words:
+  - bunup
+  - gitpaper
+  - blockquotes
+
+ignoreWords:
+  - scule
+  - octocat
+
+overrides:
+  - filename: '**/package.json'
+    words:
+      - Okinea
+
+languageSettings:
+  - languageId: markdown
+    words:
+      - srcset
+
+ignorePaths:
+  - .github/**/*.yml
+  - tests/**/__snapshots__/
+  - cspell.yml
+  - LICENSE

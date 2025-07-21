@@ -1,0 +1,30 @@
+{
+	// Formatter settings
+	"editor.defaultFormatter": "biomejs.biome",
+	"[json]": { "editor.defaultFormatter": "biomejs.biome" },
+	"[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }, // spellchecker:ignore esbenp
+
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit",
+		"source.fixAll.biome": "explicit"
+		// "quickfix.biome": "explicit"
+	},
+
+	// Read-only files
+	"files.readonlyInclude": {
+		"bun.lock": true,
+		"tests/__snapshots__/**/*.snap": true
+	},
+
+	// Use local TypeScript version
+	"typescript.tsdk": "node_modules/typescript/lib",
+
+	"material-icon-theme.files.associations": {
+		"bunup.config.ts": "bun",
+		"tsconfig.bun.json": "tsconfig"
+	},
+	"material-icon-theme.folders.associations": {
+		"tests/test-assets": "resource",
+		"vitepress-components": "vue"
+	}
+}
