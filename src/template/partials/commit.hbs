@@ -1,0 +1,13 @@
+- {{#if scope}}**{{{scope}}}:** {{/if}}{{{upperFirst description}}} &nbsp;-&nbsp; by {{author.name}}{{#if issueUrl}} in [{{issueUrl}}]({{issueUrl}}){{/if}} [<samp>({{shaShort hash}})</samp>](https://github.com/{{@root.owner}}/{{@root.repo}}/commit/{{hash}})
+{{!-- Check if the commit has a body to display --}}
+{{#if changelogBody}}
+  {{!-- Split the commit body into individual lines --}}
+  {{#each (splitLines changelogBody)}}
+    {{!-- Display non-empty lines of the commit body as blockquotes --}}
+    {{#if this~}}
+> {{{this}}}
+{{#unless @last}}>
+{{/unless}}
+    {{/if}}
+  {{/each}}
+{{/if}}

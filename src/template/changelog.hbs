@@ -1,0 +1,17 @@
+{{#if sections.length~}}
+  {{!-- Loop through each section provided in the data --}}
+  {{#each sections~}}
+{{> section}}
+{{#unless @last}}
+
+{{/unless}}
+  {{/each}}
+{{~else}}
+_No significant changes_
+{{~/if}}
+{{#if contributors}}
+
+{{> contributors}}
+{{~/if}}
+
+##### &nbsp;&nbsp;&nbsp;&nbsp; [View changes on GitHub](https://github.com/{{owner}}/{{repo}}/compare/{{prevTag}}...{{newTag}})

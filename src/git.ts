@@ -1,46 +1,46 @@
-// import type { ChangelogConfig } from './config'
-import { execCommand } from './exec'
+import { $, execa } from 'execa'
+import type { ChangeType, GitCommit, GitCommitAuthor, RawGitCommit, RepoInfo } from './types'
 
-export interface GitCommitAuthor {
-	name: string
-	email: string
-}
+/**
+ * Gets the current repository name and owner using gh CLI (preferred) or git commands
+ * @returns - Object containing owner and repository name
+ * @throws Error if not in a git repository or commands fail
+ */
+export async function getCurrentRepoInfo(): Promise<RepoInfo> {
+	const remoteUrl = (await $`git config --get remote.origin.url`).stdout
 
-export interface RawGitCommit {
-	message: string
-	body: string
-	hash: string
-	author: GitCommitAuthor
-}
-
-export interface GitCommit extends RawGitCommit {
-	description: string
-	type: string
-	scope: string
-	authors: GitCommitAuthor[]
-	isBreaking: boolean
-	changelogBody?: string
-}
-
-export async function getLastGitTag(cwd?: string): Promise<string | undefined> {
-	try {
-		return execCommand('git describe --tags --abbrev=0', cwd)?.split('\n').at(-1)
-	} catch {
-		// Ignore
+	if (!remoteUrl) {
+		throw new Error('No remote origin URL found')
 	}
+
+	const [owner, repo] = remoteUrl
+		.replace(/\.git$/, '')
+		.split('/')
+		.slice(-2)
+
+	return { owner, repo }
 }
 
-export async function getGitDiff(
-	from: string | undefined,
-	to = 'HEAD',
-	cwd?: string,
-): Promise<RawGitCommit[]> {
+export async function getLastGitTag(to: string): Promise<string> {
+	return (await execa('git', ['describe', '--abbrev=0', '--tags', `${to}^`])).stdout
+}
+
+export async function getFirstGitCommit(): Promise<string> {
+	return (await $`git rev-list --max-parents=0 HEAD`).stdout
+}
+
+export async function getCurrentGitBranch(): Promise<string> {
+	return (await $`git tag --points-at HEAD`).stdout || (await $`git rev-parse --abbrev-ref HEAD`).stdout
+}
+
+export async function getGitDiff(from: string | undefined, to = 'HEAD'): Promise<RawGitCommit[]> {
 	const divider = '=== gitpaper commit log divider ==='
+	const fromTo = from ? `${from}...${to}` : to
 	// https://git-scm.com/docs/pretty-formats
-	const r = execCommand(
-		`git --no-pager log "${from ? `${from}...` : ''}${to}" --pretty="${divider}%n%s|%H|%an|%ae%n%b"`,
-		cwd,
-	)
+	const prettyFormat = `${divider}%n%s|%H|%an|%ae%n%b`
+
+	const r = (await $('git', ['--no-pager', 'log', fromTo, `--pretty=${prettyFormat}`])).stdout
+
 	return r
 		.split(`${divider}\n`)
 		.splice(1)
@@ -106,7 +106,7 @@ export function parseGitCommit(
 		return null
 	}
 
-	const type = match.groups?.type || ''
+	const type: ChangeType = (match.groups?.type as ChangeType) || ('' as ChangeType)
 	const hasBreakingBody = /breaking change:/i.test(commit.body)
 
 	const scope = match.groups?.scope || ''
@@ -127,9 +127,10 @@ export function parseGitCommit(
 	}
 
 	const changelogBody = extractChangelogBody(commit.body)
-
 	return {
-		...commit,
+		hash: commit.hash,
+		body: commit.body,
+		author: commit.author,
 		authors,
 		description,
 		type,
