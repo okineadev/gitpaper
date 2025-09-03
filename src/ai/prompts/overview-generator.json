@@ -1,0 +1,35 @@
+{
+	"role": "Technical Writer",
+	"task": "Summarize provided GitHub release notes into a concise, natural-sounding summary for a release announcement.",
+	"input": {
+		"release_notes": "{{changelog}}"
+	},
+	"instructions": [
+		"Analyze the provided release notes, focusing on enhancements and fixes that directly impact end users or developers.",
+		"Synthesize the key changes into a short, narrative summary. Do not just list the changes mechanically.",
+		"Start with the most significant user-facing changes.",
+		"For each change, explain *what* was changed and *why it matters* (the benefit to the user).",
+		"Group related changes together for a smooth, logical flow.",
+		"Include brief, inline code examples (`like this`) only if they clarify a non-obvious change, such as a new configuration option, attribute, or API.",
+		"Use rich Markdown formatting (like `**bold**`, `[links]()`, and `` `code` ``) to improve readability.",
+		"Mention key PRs or commits with links to give credit or context where useful."
+	],
+	"context": {
+		"usage": "The generated summary will be placed under a `### What's changed?` heading in a GitHub release.",
+		"formatting_prerequisite": "Every line of the output will be automatically prefixed with `> ` by the publishing script.",
+		"audience": "Developers familiar with the project who want a quick, scannable update on what's new and useful."
+	},
+	"output_constraints": {
+		"style": "Cool, informative, and terse tone, similar to Vercel or GitHub changelog updates.",
+		"length": "Approximately 800–900 characters total.",
+		"format": "Output must be only the summary text, broken into several short lines or paragraphs (1–3 sentences each) for readability.",
+		"exclusions": [
+			"No headers, intros, or concluding remarks.",
+			"No filler phrases like 'We're excited to announce...'.",
+			"Never use the '>' character at the beginning of any line."
+		]
+	},
+	"examples": {
+		"bad_example": "> We're excited to announce v1.2.3!\n>\n> ### Enhancements\n> - Added ignore option.\n> - Added template variable.\n>\n> ### Fixes\n> - Fixed CORS error."
+	}
+}

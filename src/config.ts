@@ -5,7 +5,7 @@ export function defineConfig(config: GitpaperConfiguration): GitpaperConfigurati
 	return config
 }
 
-export const defaultConfig = {
+export const defaultConfig: GitpaperConfiguration = {
 	types: {
 		feat: '🚀 Enhancements',
 		perf: '⚡ Performance',
@@ -14,18 +14,22 @@ export const defaultConfig = {
 	},
 	contributors: true,
 	emoji: true,
+	experimental: {
+		generateOverview: false,
+	},
 } as const
-defaultConfig satisfies GitpaperConfiguration
 
-export async function resolveConfig(options: GitpaperConfiguration): Promise<ResolvedGitpaperConfiguration> {
+export async function resolveConfig(
+	options: GitpaperConfiguration & { generateOverview?: boolean },
+): Promise<ResolvedGitpaperConfiguration> {
 	const { loadConfig } = await import('c12')
 
-	const config = await loadConfig<GitpaperConfiguration>({
+	const config = (await loadConfig<GitpaperConfiguration>({
 		name: 'gitpaper',
 		defaults: defaultConfig,
 		overrides: options,
 		packageJson: 'gitpaper',
-	}).then((resolvedConfig) => resolvedConfig.config || defaultConfig)
+	}).then((resolvedConfig) => resolvedConfig.config || defaultConfig)) as Required<GitpaperConfiguration>
 
 	if (typeof config.repo === 'string') {
 		const [owner, repo] = config.repo.split('/')
@@ -33,6 +37,9 @@ export async function resolveConfig(options: GitpaperConfiguration): Promise<Res
 	} else {
 		config.repo = config.repo || (await getCurrentRepoInfo())
 	}
+
+	// Overrides
+	config.experimental.generateOverview = options.generateOverview || config.experimental?.generateOverview
 
 	return config as ResolvedGitpaperConfiguration
 }

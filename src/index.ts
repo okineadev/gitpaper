@@ -1,6 +1,7 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import Handlebars from 'handlebars'
 import { upperFirst } from 'scule'
-import changelogTemplate from './template/changelog.hbs' with { type: 'text' }
 import type { GitCommit, ResolvedGitpaperConfiguration, Section } from './types'
 
 /**
@@ -8,7 +9,7 @@ import type { GitCommit, ResolvedGitpaperConfiguration, Section } from './types'
  * The changelog is organized by change types (feat, fix, etc.) and includes
  * entry details such as text, description, and author
  *
- * @param entries - An array of changelog entries to process
+ * @param commits - An array of changelog entries to process
  * @returns A formatted string containing the complete changelog
  *
  * @example
@@ -33,27 +34,27 @@ import type { GitCommit, ResolvedGitpaperConfiguration, Section } from './types'
  * // - \@john.doe
  */
 export async function generateChangelog(
-	entries: GitCommit[],
+	commits: GitCommit[],
 	config: ResolvedGitpaperConfiguration,
 	prevTag?: string,
 	newTag?: string,
 ): Promise<string> {
-	await Promise.all([
-		Handlebars.registerPartial(
-			'commit',
-			(await import('./template/partials/commit.hbs', { with: { type: 'text' } })).default,
-		),
-		Handlebars.registerPartial(
-			'contributors',
-			(await import('./template/partials/contributors.hbs', { with: { type: 'text' } })).default,
-		),
-		Handlebars.registerPartial(
-			'section',
-			(await import('./template/partials/section.hbs', { with: { type: 'text' } })).default,
-		),
-	])
+	Handlebars.registerPartial(
+		'commit',
+		await fs.readFile(path.resolve(__dirname, './template/partials/commit.hbs'), { encoding: 'utf-8' }),
+	)
+	Handlebars.registerPartial(
+		'contributors',
+		await fs.readFile(path.resolve(__dirname, './template/partials/contributors.hbs'), { encoding: 'utf-8' }),
+	)
+	Handlebars.registerPartial(
+		'section',
+		await fs.readFile(path.resolve(__dirname, './template/partials/section.hbs'), { encoding: 'utf-8' }),
+	)
 
-	const template = Handlebars.compile(changelogTemplate)
+	const template = Handlebars.compile(
+		await fs.readFile(path.resolve(__dirname, './template/changelog.hbs'), { encoding: 'utf-8' }),
+	)
 
 	// Register shaShort helper
 	Handlebars.registerHelper('shaShort', (sha: string) => sha.slice(0, 5))
@@ -63,15 +64,15 @@ export async function generateChangelog(
 	const sections: Section[] = Object.entries(config.types)
 		.filter((type): type is [string, string] => type[1] !== false)
 		.map(([type, title]) => {
-			const commits = entries.filter((e) => e.type === type)
+			const commits_ = commits.filter((e) => e.type === type)
 
-			if (!commits.length) return null
-			return { title: config.emoji ? title : title.slice(3), commits }
+			if (!commits_.length) return null
+			return { title: config.emoji ? title : title.slice(3), commits: commits_ }
 		})
 		.filter(Boolean) as Section[]
 
 	const contributors: string[] | undefined = config.contributors
-		? Array.from(new Set(entries.flatMap((e) => e.authors.map((a) => a.name) ?? [])))
+		? Array.from(new Set(commits.flatMap((e) => e.authors.map((a) => a.name) ?? [])))
 		: undefined
 
 	return template({

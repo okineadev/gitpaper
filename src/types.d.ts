@@ -52,11 +52,35 @@ export interface GitpaperConfiguration {
 	 */
 	types?: Record<string, string | boolean>
 	repo?: RepoInfo | string
+
 	/**
 	 * Use emojis in section titles
+	 *
 	 * @default true
 	 */
 	emoji?: boolean
+
+	/**
+	 * 🧪 Experimental features that may change in future versions.
+	 *
+	 * @experimental
+	 */
+	experimental?: {
+		/**
+		 * Whether to generate AI Overview at the beginning of release notes
+		 *
+		 * ---
+		 *
+		 * For context, the generated release notes are taken
+		 *
+		 * Currently, they are generated only by Gemini (`2.5 Flash`), in the future, support for all providers is planned (for example, **OpenAI**, **xAI** and **Mistral**)
+		 *
+		 * Gemini 2.5 Flash was chosen due to its high generation speed and free API
+		 *
+		 * @default false
+		 */
+		generateOverview?: boolean
+	}
 }
 
 export type ResolvedGitpaperConfiguration = Required<Omit<GitpaperConfiguration, 'repo'>> & {

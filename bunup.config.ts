@@ -1,3 +1,4 @@
+import { $ } from 'bun'
 import { defineConfig } from 'bunup'
 import { exports } from 'bunup/plugins'
 
@@ -9,8 +10,13 @@ export default defineConfig({
 	banner: '// Built with bunup (https://bunup.dev)',
 
 	async onSuccess() {
-		const indexMJS = Bun.file('dist/index.mjs')
-		const patchedIndexMJS = (await indexMJS.text()).replace('\nexport {\n  generateChangelog\n};\n', '')
-		await indexMJS.write(patchedIndexMJS)
+		await Promise.all([
+			$`sed -z -i 's/export {[[:space:]]*generateChangelog[[:space:]]*};\n//g'  dist/index.mjs`,
+			$`sed -i 's/}\ from "\.\.\/index\.js";/} from "..\/index.mjs";/'          dist/cli/gitpaper.mjs`,
+
+			// Copy folders
+			$`cp -r src/template dist`,
+			$`mkdir -p dist/ai && cp -r src/ai/prompts dist/ai/prompts`,
+		])
 	},
 })
