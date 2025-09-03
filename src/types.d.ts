@@ -9,7 +9,7 @@ export type ChangeType = keyof typeof defaultConfig.types
 
 export interface GitCommitAuthor {
 	/**
-	 * The name or username of the person who made the change
+	 * The name of the person who made the change
 	 *
 	 * @example 'octocat'
 	 */
@@ -17,20 +17,25 @@ export interface GitCommitAuthor {
 	email: string
 }
 
-export interface RawGitCommit {
-	message: string
-	hash: string
-	author: GitCommitAuthor
-	body: string
+export interface ResolvedGitCommitAuthor extends GitCommitAuthor {
+	username: string
 }
 
-export interface GitCommit extends Omit<RawGitCommit, 'message'> {
-	authors: GitCommitAuthor[]
-	description: string
+export interface RawGitCommit {
+	message: string
+	body: string
+	date: string
+	hash: string
+	author: GitCommitAuthor
+	coAuthors: GitCommitAuthor[]
+}
+
+export interface GitCommit extends RawGitCommit {
+	subject: string
+	changelogBody?: string
 	type: ChangeType
 	scope?: string
 	isBreaking: boolean
-	changelogBody?: string
 }
 
 export interface RepoInfo {

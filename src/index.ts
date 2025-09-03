@@ -72,7 +72,7 @@ export async function generateChangelog(
 		.filter(Boolean) as Section[]
 
 	const contributors: string[] | undefined = config.contributors
-		? Array.from(new Set(commits.flatMap((e) => e.authors.map((a) => a.name) ?? [])))
+		? Array.from(new Set(commits.flatMap((e) => [...e.coAuthors, e.author].map((a) => a.name) ?? [])))
 		: undefined
 
 	return template({

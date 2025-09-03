@@ -21,8 +21,10 @@ export async function getCurrentRepoInfo(): Promise<RepoInfo> {
 	return { owner, repo }
 }
 
-export async function getLastGitTag(to: string): Promise<string> {
-	return (await execa('git', ['describe', '--abbrev=0', '--tags', `${to}^`])).stdout
+export async function getLastGitTag(to: string): Promise<string | undefined> {
+	try {
+		return (await execa('git', ['describe', '--abbrev=0', '--tags', `${to}^`])).stdout
+	} catch {}
 }
 
 export async function getFirstGitCommit(): Promise<string> {
@@ -34,33 +36,61 @@ export async function getCurrentGitBranch(): Promise<string> {
 }
 
 export async function getGitDiff(from: string | undefined, to = 'HEAD'): Promise<RawGitCommit[]> {
-	const divider = '=== gitpaper commit log divider ==='
 	const fromTo = from ? `${from}...${to}` : to
-	// https://git-scm.com/docs/pretty-formats
-	const prettyFormat = `${divider}%n%s|%H|%an|%ae%n%b`
 
-	const r = (await $('git', ['--no-pager', 'log', fromTo, `--pretty=${prettyFormat}`])).stdout
+	const commits = (await $`git --no-pager log ${fromTo} --oneline --pretty=format:%H`).stdout.split('\n')
 
-	return r
-		.split(`${divider}\n`)
-		.splice(1)
-		.map((line) => {
-			const [firstLine, ...body] = line.split('\n')
-			const [message, hash, authorName, authorEmail] = firstLine.split('|')
-			const r: RawGitCommit = {
+	return await Promise.all(
+		commits.map(async (commit): Promise<RawGitCommit> => {
+			// This is the most safe implementation of pulling data about commit from the `git` command
+			// It may be a little slower, but it's better than constantly worrying that some fool
+			// will put the `|` symbol or another divider we use in his name and break the commit parsing
+			// in some repository forever.
+			// The chance is low, but never zero.
+			const showCommitField = async (commitHash: string, format: string) =>
+				(await $`git --no-pager show ${commitHash} -s --format=%${format}`).stdout
+
+			const [message, body, date, author, coAuthors /*, signingStatus */] = await Promise.all([
+				// 🗒️ https://git-scm.com/docs/pretty-formats
+				showCommitField(commit, 's'),
+				showCommitField(commit, 'b'),
+				showCommitField(commit, 'at'),
+				(async (): Promise<GitCommitAuthor> => {
+					const [name, email] = await Promise.all([
+						showCommitField(commit, 'an'),
+						showCommitField(commit, 'ae'),
+					])
+					return { name, email }
+				})(),
+
+				(async (): Promise<GitCommitAuthor[]> => {
+					const coAuthors = (await showCommitField(commit, '(trailers:key=Co-Authored-By,valueonly)')).trim()
+					return coAuthors.length
+						? coAuthors.split('\n').map(
+								(coAuthorString): GitCommitAuthor =>
+									// @ts-expect-error
+									coAuthorString.match(/^(?<name>[^s].+) (?:<(?<email>[^s].+[^s])>)$/i)
+										.groups as unknown as GitCommitAuthor,
+							)
+						: []
+				})(),
+				// showCommitField(commit, 'G?'),
+			])
+
+			return {
 				message,
-				hash,
-				author: { name: authorName, email: authorEmail },
-				body: body.join('\n'),
+				body,
+				date,
+				hash: commit,
+				author,
+				coAuthors,
+				// signingStatus,
 			}
-			return r
-		})
+		}),
+	)
 }
 
-export function parseCommits(
-	commits: RawGitCommit[],
-	// config: ChangelogConfig,
-): GitCommit[] {
+export function parseCommits(commits: RawGitCommit[]): GitCommit[] {
 	return commits.map(parseGitCommit).filter(Boolean) as GitCommit[]
 }
 
@@ -87,7 +117,6 @@ const ConventionalCommitRegex = new RegExp(
 )
 
 // const humanRegex = /(?<name>[^\s].+) (?:<(?<email>[^\s].+[^\s])>)/gim
-const CoAuthoredByRegex = /^Co-authored-by: (?<name>[^s].+) (?:<(?<email>[^s].+[^s])>)$/gim
 // const PullRequestRE = /\([ a-z]*(#\d+)\s*\)/gm
 // const IssueRE = /(#\d+)/gm
 
@@ -97,10 +126,7 @@ function extractChangelogBody(body: string): string | undefined {
 	return match[1] ? match[1].trim() : undefined
 }
 
-export function parseGitCommit(
-	commit: RawGitCommit,
-	// config: ChangelogConfig,
-): GitCommit | null {
+export function parseGitCommit(commit: RawGitCommit): GitCommit | null {
 	const match = commit.message.match(ConventionalCommitRegex)
 	if (!match) {
 		return null
@@ -112,30 +138,15 @@ export function parseGitCommit(
 	const scope = match.groups?.scope || ''
 
 	const isBreaking = Boolean(match.groups?.breaking || hasBreakingBody)
-	const description = match.groups?.description as string
-
-	// Find all authors
-	const authors: GitCommitAuthor[] = [commit.author]
-
-	for (const match of commit.body.matchAll(CoAuthoredByRegex)) {
-		if (match.groups) {
-			authors.push({
-				name: (match.groups.name || '').trim(),
-				email: (match.groups.email || '').trim(),
-			})
-		}
-	}
+	const subject = match.groups?.description as string
 
 	const changelogBody = extractChangelogBody(commit.body)
 	return {
-		hash: commit.hash,
-		body: commit.body,
-		author: commit.author,
-		authors,
-		description,
+		...commit,
+		subject,
+		changelogBody,
 		type,
 		scope,
 		isBreaking,
-		changelogBody,
 	}
 }
