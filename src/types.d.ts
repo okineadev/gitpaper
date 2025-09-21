@@ -86,6 +86,23 @@ export interface GitpaperConfiguration {
 		 */
 		generateOverview?: boolean
 	}
+
+	/**
+	 * Whether to exclude bot contributors (authors with names ending in [bot]) from release notes.
+	 *
+	 * @default true
+	 */
+	excludeBots?: boolean
+
+	/**
+	 * Exclude specific contributors from release notes.
+	 * Can be an array of names/emails or a function that returns true to exclude.
+	 *
+	 * @example
+	 * excludeContributors: ["octocat", "octocat@github.com"]
+	 * excludeContributors: (author) => author.name === "octocat" || author.email.endsWith("@bots.com")
+	 */
+	excludeContributors?: Array<string> | ((author: GitCommitAuthor) => boolean)
 }
 
 export type ResolvedGitpaperConfiguration = Required<Omit<GitpaperConfiguration, 'repo'>> & {

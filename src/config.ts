@@ -17,6 +17,7 @@ export const defaultConfig: GitpaperConfiguration = {
 	experimental: {
 		generateOverview: false,
 	},
+	excludeBots: true,
 } as const
 
 export async function resolveConfig(

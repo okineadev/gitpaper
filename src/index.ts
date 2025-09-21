@@ -72,7 +72,22 @@ export async function generateChangelog(
 		.filter(Boolean) as Section[]
 
 	const contributors: string[] | undefined = config.contributors
-		? Array.from(new Set(commits.flatMap((e) => [...e.coAuthors, e.author].map((a) => a.name) ?? [])))
+		? Array.from(
+				new Set(
+					commits
+						.flatMap((e) => [...e.coAuthors, e.author])
+						.filter((a) => {
+							if (config.excludeBots && /\[bot\]$/i.test(a.name.trim())) return false
+							if (typeof config.excludeContributors === 'function') return !config.excludeContributors(a)
+							if (Array.isArray(config.excludeContributors)) {
+								if (config.excludeContributors.includes(a.name)) return false
+								if (config.excludeContributors.includes(a.email)) return false
+							}
+							return true
+						})
+						.map((a) => a.name),
+				),
+			)
 		: undefined
 
 	return template({
