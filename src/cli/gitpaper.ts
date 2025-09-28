@@ -29,7 +29,7 @@ program
 		const config = await resolveConfig(args)
 
 		const diff = await getGitDiff(from, to)
-		const commits = parseCommits(diff)
+		const commits = await parseCommits(diff)
 
 		let changelog = await generateChangelog(commits, config, from, to)
 

@@ -2,7 +2,14 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import Handlebars from 'handlebars'
 import { upperFirst } from 'scule'
-import type { GitCommit, ResolvedGitpaperConfiguration, Section } from './types'
+import { githubUser } from './github'
+import type {
+	GitCommit,
+	GitCommitAuthor,
+	ResolvedGitCommitAuthor,
+	ResolvedGitpaperConfiguration,
+	Section,
+} from './types'
 
 /**
  * Generates a formatted changelog from an array of changelog entries.
@@ -61,20 +68,44 @@ export async function generateChangelog(
 	Handlebars.registerHelper('splitLines', (text: string) => text.split(/\r?\n/))
 	Handlebars.registerHelper('upperFirst', upperFirst)
 
-	const sections: Section[] = Object.entries(config.types)
-		.filter((type): type is [string, string] => type[1] !== false)
-		.map(([type, title]) => {
-			const commits_ = commits.filter((e) => e.type === type)
+	const sections: Section[] = (
+		await Promise.all(
+			Object.entries(config.types)
+				.filter((type): type is [string, string] => type[1] !== false)
+				.map(async ([type, title]) => {
+					const commits_ = await Promise.all(
+						commits
+							.filter((e) => e.type === type)
+							.map(async (commit) => {
+								if (config.resolveContributorsGitHub) {
+									const resolvedAuthorGithub = await githubUser(commit.author.email)
+									if (resolvedAuthorGithub) {
+										return {
+											...commit,
+											author: {
+												...commit.author,
+												name: resolvedAuthorGithub.name || commit.author.name,
+												username: resolvedAuthorGithub.username,
+											} as ResolvedGitCommitAuthor,
+										}
+									}
+								}
+								return commit
+							}),
+					)
 
-			if (!commits_.length) return null
-			return { title: config.emoji ? title : title.slice(3), commits: commits_ }
-		})
-		.filter(Boolean) as Section[]
+					if (!commits_.length) return null
+					return { title: config.emoji ? title : title.slice(3), commits: commits_ }
+				}),
+		)
+	).filter(Boolean) as Section[]
 
-	const contributors: string[] | undefined = config.contributors
+	const allCommits: GitCommit[] = sections.flatMap((section) => section.commits)
+
+	const contributors: (GitCommitAuthor | ResolvedGitCommitAuthor)[] | undefined = config.contributors
 		? Array.from(
-				new Set(
-					commits
+				new Map(
+					allCommits
 						.flatMap((e) => [...e.coAuthors, e.author])
 						.filter((a) => {
 							if (config.excludeBots && /\[bot\]$/i.test(a.name.trim())) return false
@@ -85,8 +116,8 @@ export async function generateChangelog(
 							}
 							return true
 						})
-						.map((a) => a.name),
-				),
+						.map((a) => [a.email, a]),
+				).values(),
 			)
 		: undefined
 

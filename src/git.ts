@@ -90,8 +90,9 @@ export async function getGitDiff(from: string | undefined, to = 'HEAD'): Promise
 	)
 }
 
-export function parseCommits(commits: RawGitCommit[]): GitCommit[] {
-	return commits.map(parseGitCommit).filter(Boolean) as GitCommit[]
+export async function parseCommits(commits: RawGitCommit[]): Promise<GitCommit[]> {
+	const parsed = await Promise.all(commits.map(parseGitCommit))
+	return parsed.filter((c): c is GitCommit => Boolean(c))
 }
 
 const emojiGroup =
@@ -126,7 +127,7 @@ function extractChangelogBody(body: string): string | undefined {
 	return match[1] ? match[1].trim() : undefined
 }
 
-export function parseGitCommit(commit: RawGitCommit): GitCommit | null {
+export async function parseGitCommit(commit: RawGitCommit): Promise<GitCommit | null> {
 	const match = commit.message.match(ConventionalCommitRegex)
 	if (!match) {
 		return null

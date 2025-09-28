@@ -1,8 +1,11 @@
 <img src="assets/newspaper.svg" width="70" align="left">
 
-# **`gitpaper`** \[WIP\]
+# **`gitpaper`**
 
 > The first ever generator of non-boring and actually detailed release notes
+
+> [!NOTE]
+> The project is still under development and can already be used in some real-world cases, but the settings/principle of operation may change without notice before the first major version is released, so don't be upset if something breaks.
 
 ## 🛠️ Usage
 

@@ -17,7 +17,11 @@ export interface GitCommitAuthor {
 	email: string
 }
 
+type CanBeDifferent<T> = T | (T & {})
+
 export interface ResolvedGitCommitAuthor extends GitCommitAuthor {
+	// Name from GitHub can be different
+	name: CanBeDifferent<GitCommitAuthor['name']>
 	username: string
 }
 
@@ -36,6 +40,7 @@ export interface GitCommit extends RawGitCommit {
 	type: ChangeType
 	scope?: string
 	isBreaking: boolean
+	author: GitCommitAuthor | ResolvedGitCommitAuthor
 }
 
 export interface RepoInfo {
@@ -103,6 +108,13 @@ export interface GitpaperConfiguration {
 	 * excludeContributors: (author) => author.name === "octocat" || author.email.endsWith("@bots.com")
 	 */
 	excludeContributors?: Array<string> | ((author: GitCommitAuthor) => boolean)
+
+	/**
+	 * Whether to resolve contributors GitHub.
+	 *
+	 * @default true
+	 */
+	resolveContributorsGitHub?: boolean
 }
 
 export type ResolvedGitpaperConfiguration = Required<Omit<GitpaperConfiguration, 'repo'>> & {

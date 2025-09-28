@@ -18,6 +18,7 @@ export const defaultConfig: GitpaperConfiguration = {
 		generateOverview: false,
 	},
 	excludeBots: true,
+	resolveContributorsGitHub: true,
 } as const
 
 export async function resolveConfig(
