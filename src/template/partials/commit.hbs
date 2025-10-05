@@ -1,4 +1,4 @@
-- {{#if scope}}**{{{scope}}}:** {{/if}}{{{upperFirst subject}}} &nbsp;-&nbsp; by {{#if author.username}}[{{author.name}}](https://github.com/{{author.username}}){{else}}{{author.name}}{{/if}}{{#if issueUrl}} in [{{issueUrl}}]({{issueUrl}}){{/if}} [<samp>({{shaShort hash}})</samp>](https://github.com/{{@root.owner}}/{{@root.repo}}/commit/{{hash}})
+- {{#if scope}}**{{{scope}}}:** {{/if}}{{{upperFirst subject}}} &nbsp;-&nbsp; by {{#if author.username}}@{{author.username}}{{else}}**{{author.name}}**{{/if}}{{#if coAuthors.length}}, {{#each coAuthors}}{{#if @last}}and {{/if}}{{#unless @last}}{{#if this.username}}@{{this.username}}{{else}}**{{this.name}}**{{/if}}{{#if @last}}{{else}}, {{/if}}{{else}}{{#if this.username}}@{{this.username}}{{else}}**{{this.name}}**{{/if}}{{/unless}}{{/each}}{{/if}}{{#if issueUrl}} in [{{issueUrl}}]({{issueUrl}}){{/if}} [<samp>({{shaShort hash}})</samp>](https://github.com/{{@root.owner}}/{{@root.repo}}/commit/{{hash}})
 {{!-- Check if the commit has a body to display --}}
 {{#if changelogBody}}
   {{!-- Split the commit body into individual lines --}}
