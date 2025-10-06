@@ -46,6 +46,7 @@ export async function generateChangelog(
 	prevTag?: string,
 	newTag?: string,
 ): Promise<string> {
+	// Register Handlebars partials
 	Handlebars.registerPartial(
 		'commit',
 		await fs.readFile(path.resolve(__dirname, './template/partials/commit.hbs'), { encoding: 'utf-8' }),
@@ -63,51 +64,68 @@ export async function generateChangelog(
 		await fs.readFile(path.resolve(__dirname, './template/changelog.hbs'), { encoding: 'utf-8' }),
 	)
 
-	// Register shaShort helper
+	// Register helpers
 	Handlebars.registerHelper('shaShort', (sha: string) => sha.slice(0, 5))
 	Handlebars.registerHelper('splitLines', (text: string) => text.split(/\r?\n/))
 	Handlebars.registerHelper('upperFirst', upperFirst)
 
-	// Allowed authors
-	const allAuthors = commits
-		.flatMap((commit) => commit.author)
-		.filter(
-			(author, index, array) =>
-				index === array.findIndex((a) => a.name.trim().toLowerCase() === author.name.trim().toLowerCase()),
-		)
-		.filter((author) => {
-			if (config.excludeBots && /\[bot\]$/i.test(author.name.trim())) return false
-			if (typeof config.excludeContributors === 'function') return !config.excludeContributors(author)
-			if (Array.isArray(config.excludeContributors)) {
-				if (config.excludeContributors.includes(author.name)) return false
-				if (config.excludeContributors.includes(author.email)) return false
-			}
-			return true
-		})
+	// --- 1. Normalize commits ---
+	const normalizedCommits = commits.filter((c) => c.author && c.type)
 
-	const filteredCommits = commits.filter((commit) =>
-		allAuthors.some((author) => author.name === commit.author.name && author.email === commit.author.email),
+	// --- 2. Collect unique authors ---
+	const uniqueAuthors = new Map<string, GitCommitAuthor>()
+
+	for (const commit of normalizedCommits) {
+		const { author } = commit
+		if (config.excludeBots && /\[bot\]$/i.test(author.name)) continue
+
+		const key = `${author.name}|${author.email}`
+		if (uniqueAuthors.has(key)) continue
+
+		if (typeof config.excludeContributors === 'function' && config.excludeContributors(author)) continue
+		if (Array.isArray(config.excludeContributors)) {
+			if (
+				config.excludeContributors.includes(author.name) ||
+				config.excludeContributors.includes(author.email)
+			)
+				continue
+		}
+
+		uniqueAuthors.set(key, author)
+	}
+
+	// --- 3. Filter commits by allowed authors ---
+	const allowedAuthorKeys = new Set(uniqueAuthors.keys())
+
+	const filteredCommits = normalizedCommits.filter((c) =>
+		allowedAuthorKeys.has(`${c.author.name}|${c.author.email}`),
 	)
 
+	// --- 4. Group commits by type ---
+	const commitsByType = new Map<string, GitCommit[]>()
+
+	for (const commit of filteredCommits) {
+		const arr = commitsByType.get(commit.type) ?? []
+		arr.push(commit)
+		commitsByType.set(commit.type, arr)
+	}
+
+	// --- 5. Generate sections from grouped commits ---
 	const sections: Section[] = (
 		await Promise.all(
 			Object.entries(config.types)
 				.filter((type): type is [string, string] => type[1] !== false)
 				.map(async ([type, title]) => {
-					const commits_ = await Promise.all(
-						filteredCommits
-							.filter((e) => e.type === type)
+					const commits_ = commitsByType.get(type)
+					if (!commits_?.length) return null
+
+					const resolvedCommits = await Promise.all(
+						commits_
 							.map((commit) => ({
 								...commit,
 								coAuthors: commit.coAuthors.filter(
 									(coAuthor) =>
 										coAuthor.email !== commit.author.email && coAuthor.name !== commit.author.name,
-									// !Object.keys(commit.author).every(
-									// 	(key) =>
-									// 		Object.hasOwn(commit.author, key) &&
-									// 		coAuthor[key as keyof GitCommitAuthor] ===
-									// 			commit.author[key as keyof GitCommitAuthor],
-									// ),
 								),
 							}))
 							.map(async (commit) => {
@@ -150,31 +168,26 @@ export async function generateChangelog(
 							}),
 					)
 
-					if (!commits_.length) return null
+					if (!resolvedCommits.length) return null
 					return {
 						title: config.emoji ? title : title.slice(3),
-						commits: commits_,
+						commits: resolvedCommits,
 					}
 				}),
 		)
 	).filter(Boolean) as Section[]
 
+	// Collect all commits from every section into a single array
 	const allCommits: GitCommit[] = sections.flatMap((section) => section.commits)
 
+	// Build the list of unique contributors, if enabled in config
 	const contributors: (GitCommitAuthor | ResolvedGitCommitAuthor)[] | undefined = config.contributors
 		? Array.from(
 				new Map(
 					allCommits
+						// Flatten all authors and co-authors from every commit
 						.flatMap((e) => [...e.coAuthors, e.author])
-						.filter((a) => {
-							if (config.excludeBots && /\[bot\]$/i.test(a.name.trim())) return false
-							if (typeof config.excludeContributors === 'function') return !config.excludeContributors(a)
-							if (Array.isArray(config.excludeContributors)) {
-								if (config.excludeContributors.includes(a.name)) return false
-								if (config.excludeContributors.includes(a.email)) return false
-							}
-							return true
-						})
+						// Use email as a unique key to remove duplicates
 						.map((a) => [a.email, a]),
 				).values(),
 			)
