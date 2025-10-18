@@ -5,6 +5,7 @@ import { generateText } from 'ai'
 import { Command } from 'commander'
 import Handlebars from 'handlebars'
 import { resolveConfig } from '@/config'
+import { sendRelease } from '@/github'
 import { version as VERSION } from '../../package.json'
 import { generateChangelog } from '..'
 import { getCurrentGitBranch, getFirstGitCommit, getGitDiff, getLastGitTag, parseCommits } from '../git'
@@ -22,6 +23,10 @@ program
 	.option('--emoji', 'Use emojis in section titles')
 	.option('--no-emoji', 'do not use emojis in section titles')
 	.option('--generateOverview', 'Add AI generated overview (experimental)')
+	.option('--release', 'Release')
+	.option('--release-name <name>', 'Release name')
+	.option('--draft', 'Mark release as draft')
+	.option('--prerelease', 'Mark release as prerelease')
 	.action(async (args) => {
 		const to = args.to || (await getCurrentGitBranch())
 		const from = args.from || (await getLastGitTag(to)) || (await getFirstGitCommit())
@@ -66,7 +71,24 @@ program
 			changelog = `${AIOverviewTemplate({ AIGeneratedOverview })}\n\n${changelog}`
 		}
 
-		console.log(changelog)
+		if (args.release) {
+			if (!process.env.GITHUB_TOKEN) {
+				console.error('GITHUB_TOKEN environment variable is not set')
+				process.exit(1)
+			}
+
+			await sendRelease(config.repo, {
+				to,
+				token: process.env.GITHUB_TOKEN,
+				changelog,
+				name: args.releaseName,
+				draft: args.draft,
+				prerelease: args.prerelease,
+			})
+		} else {
+			console.log(changelog)
+		}
+
 		process.exit(0)
 	})
 	.addHelpText('after', '\nGitHub: https://github.com/okineadev/gitpaper')
