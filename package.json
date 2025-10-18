@@ -17,7 +17,8 @@
 				"types": "./dist/index.d.mts",
 				"default": "./dist/index.mjs"
 			}
-		}
+		},
+		"./package.json": "./package.json"
 	},
 	"license": "MIT",
 	"author": "Okinea Dev <hi@okinea.dev> (https://github.com/okineadev)",
@@ -62,7 +63,7 @@
 		"@octokit/types": "^15.0.0",
 		"@types/node": "^24.3.0",
 		"bun-types": "^1.2.21",
-		"bunup": "0.11.22",
+		"bunup": "0.15.3",
 		"cspell": "^9.2.1",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.1.5",
