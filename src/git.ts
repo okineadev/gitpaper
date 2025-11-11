@@ -95,26 +95,19 @@ export async function parseCommits(commits: RawGitCommit[]): Promise<GitCommit[]
 	return parsed.filter((c): c is GitCommit => Boolean(c))
 }
 
-const emojiGroup =
-	'(?:' +
-	':[a-z_]+:|' + // :emoji:
-	'\\uD83C[\\uDF00-\\uDFFF]|' + // emoji range 1
-	'\\uD83D[\\uDC00-\\uDE4F\\uDE80-\\uDEFF]|' + // emoji range 2
-	'[\\u2600-\\u2B55]' + // misc symbols
-	')'
-
-const leadingEmojis = `(?:${emojiGroup}\\s*)*`
+const emojiSequence = '\\p{Extended_Pictographic}(?:\\u200D\\p{Extended_Pictographic})*'
+const markdownEmoji = ':[a-z_+]+:'
+const gitmoji = `(?:${markdownEmoji}|${emojiSequence})`
 
 // https://сonventionalcommits.org/en/v1.0.0/
-// https://regex101.com/r/FSfNvA/1
 const ConventionalCommitRegex = new RegExp(
-	`^(?<emoji>${emojiGroup})?\\s*` + // optional emoji before type
+	`^(?:${gitmoji}\\s)?` + // optional emoji before type
 		`(?<type>[a-z]+)` + // type
 		`(?:\\((?<scope>[^)]+)\\))?` + // optional scope
 		`(?<breaking>!)?: ` + // optional breaking
-		`(?<rawDescription>${leadingEmojis})` + // optional leading emojis in description
-		`(?<description>.+)$`, // final cleaned description
-	'i',
+		`(?:${gitmoji}\\s)?` +
+		`(?<description>.+)$`,
+	'ui',
 )
 
 // const humanRegex = /(?<name>[^\s].+) (?:<(?<email>[^\s].+[^\s])>)/gim
