@@ -95,7 +95,7 @@ export async function parseCommits(commits: RawGitCommit[]): Promise<GitCommit[]
 	return parsed.filter((c): c is GitCommit => Boolean(c))
 }
 
-const emojiSequence = '\\p{Extended_Pictographic}(?:\\u200D\\p{Extended_Pictographic})*'
+const emojiSequence = '\\p{Extended_Pictographic}\\uFE0F?(?:\\u200D\\p{Extended_Pictographic}\\uFE0F?)*'
 const markdownEmoji = ':[a-z_+]+:'
 const gitmoji = `(?:${markdownEmoji}|${emojiSequence})`
 
