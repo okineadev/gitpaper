@@ -21,8 +21,8 @@
 	},
 	"output_constraints": {
 		"style": "Cool, informative, and terse tone, similar to Vercel or GitHub changelog updates.",
-		"length": "Approximately 800–900 characters total.",
-		"format": "Output must be only the summary text, broken into several short lines or paragraphs (1–3 sentences each) for readability.",
+		"length": "Approximately 800-900 characters total.",
+		"format": "Output must be only the summary text, broken into several short lines or paragraphs (1-3 sentences each) for readability.",
 		"exclusions": [
 			"No headers, intros, or concluding remarks.",
 			"No filler phrases like 'We're excited to announce...'.",

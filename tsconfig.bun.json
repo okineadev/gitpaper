@@ -2,9 +2,10 @@
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
 		"composite": true,
+		"lib": ["DOM"],
 		"types": ["bun-types"]
 	},
 
 	// Setup linting for tests later
-	"include": ["tests/**/*.ts", "lint-staged.config.ts", "bunup.config.ts"]
+	"include": ["tests/**/*.ts", "nano-staged.config.ts", "bunup.config.ts", "oxlint.config.ts"]
 }

@@ -3,3 +3,6 @@ bun = true
 
 [loader]
 ".hbs" = "text"
+
+[test]
+onlyFailures = true

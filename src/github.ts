@@ -1,35 +1,41 @@
+import { RequestError } from '@octokit/request-error'
 import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest'
-import type { RequestError } from '@octokit/types'
 import { create } from 'flat-cache'
-import type { ResolvedGitpaperConfiguration } from './types'
+
+import type { ResolvedGitpaperConfiguration, GitHubUser } from './types'
+
+import { version as VERSION } from '../package.json'
 
 const cache = create({
-	cacheId: 'gitpaper',
-	ttl: 24 * 60 * 60 * 1000, // 1 day in ms
-})
+		cacheId: 'gitpaper',
+		// oxlint-disable-next-line no-magic-numbers
+		ttl: 24 * 60 * 60 * 1000, // 1 day in ms
+	}),
+	NOT_FOUND_STATUS = 404
 
-export async function githubUser(email: string): Promise<{ name?: string; username: string } | undefined> {
-	const cached = cache.get(email)
+export async function githubUser(email: string): Promise<GitHubUser | undefined> {
+	const cached: GitHubUser | undefined = cache.get(email)
 
-	if (cached) {
-		return cached as ReturnType<typeof githubUser>
+	if (cached !== undefined) {
+		return cached
 	}
 
+	// oxlint-disable-next-line one-var
 	const octokit = new Octokit({
-		userAgent: 'gitpaper/0.0.0 (https://github.com/okineadev/gitpaper)',
-		auth: process.env.GITHUB_TOKEN,
-	})
-	const { data } = await octokit.search.commits({
-		q: `author-email:${email}`,
-		sort: 'author-date',
-		per_page: 1,
-	})
-
-	const author = data.items[0]?.author
+			auth: process.env['GITHUB_TOKEN'],
+			userAgent: `gitpaper/${VERSION} (https://github.com/okineadev/gitpaper)`,
+		}),
+		{ data } = await octokit.search.commits({
+			per_page: 1,
+			// oxlint-disable-next-line id-length
+			q: `author-email:${email}`,
+			sort: 'author-date',
+		}),
+		author = data.items[0]?.author
 
 	if (author) {
-		const resolvedUser: { name?: string; username: string } = {
-			name: author.name || undefined,
+		const resolvedUser: GitHubUser = {
+			name: author.name ?? undefined,
 			username: author.login,
 		}
 
@@ -72,6 +78,63 @@ interface SendReleaseOptions {
 	prerelease?: boolean
 }
 
+type ReleaseResponse =
+	| RestEndpointMethodTypes['repos']['updateRelease']['response']
+	| RestEndpointMethodTypes['repos']['createRelease']['response']
+
+type CreateReleaseParameters = RestEndpointMethodTypes['repos']['createRelease']['parameters']
+
+function buildReleasePayload(
+	options: SendReleaseOptions,
+	owner: string,
+	repoName: string,
+): CreateReleaseParameters {
+	const { to: tagName, changelog, draft, name, prerelease } = options
+
+	return {
+		body: changelog,
+		draft: draft ?? false,
+		name: name ?? tagName,
+		owner,
+		prerelease: prerelease ?? false,
+		repo: repoName,
+		tag_name: tagName,
+	}
+}
+
+/**
+ * Updates an existing release if one exists for the tag; otherwise creates a
+ * new release.
+ *
+ * @param octokit - The authenticated Octokit client.
+ * @param payload - The release payload.
+ * @returns The GitHub API response for the created or updated release.
+ */
+async function upsertRelease(octokit: Octokit, payload: CreateReleaseParameters): Promise<ReleaseResponse> {
+	const { owner, repo: repoName, tag_name: tagName } = payload
+
+	try {
+		const existingRelease = await octokit.repos.getReleaseByTag({
+			owner,
+			repo: repoName,
+			tag: tagName,
+		})
+
+		console.log('Existing release found. Updating release notes...')
+		return await octokit.repos.updateRelease({
+			...payload,
+			release_id: existingRelease.data.id,
+		})
+	} catch (error: unknown) {
+		if (error instanceof RequestError && error.status === NOT_FOUND_STATUS) {
+			console.log(`No existing release found. Creating new release notes for tag ${tagName}...`)
+			return octokit.repos.createRelease(payload)
+		}
+
+		throw error
+	}
+}
+
 /**
  * Sends or updates a GitHub release for a given repository and tag.
  *
@@ -84,56 +147,13 @@ export async function sendRelease(
 	repo: ResolvedGitpaperConfiguration['repo'],
 	options: SendReleaseOptions,
 ): Promise<void> {
-	// Initialize Octokit with the GitHub Token for authentication
 	const octokit = new Octokit({
-		auth: options.token,
-	})
+			auth: options.token,
+		}),
+		{ owner, repo: repoName } = repo,
+		payload = buildReleasePayload(options, owner, repoName),
+		releaseResponse = await upsertRelease(octokit, payload)
 
-	const { owner, repo: repoName } = repo
-	const { to: tagName, changelog, draft, name, prerelease } = options
-
-	// Define the common payload for both creating and updating a release.
-	const payload: Parameters<typeof octokit.repos.createRelease>[0] = {
-		owner,
-		repo: repoName,
-		tag_name: tagName,
-		body: changelog,
-		draft: draft ?? false,
-		name: name || tagName, // Use the provided name or default to the tag name
-		prerelease: prerelease ?? false,
-	}
-
-	let releaseResponse:
-		| RestEndpointMethodTypes['repos']['updateRelease']['response']
-		| RestEndpointMethodTypes['repos']['createRelease']['response']
-
-	try {
-		// 1. Try to fetch an existing release by the tag name.
-		console.log(`Checking for existing release with tag: ${tagName}...`)
-		const existingRelease = await octokit.repos.getReleaseByTag({
-			owner,
-			repo: repoName,
-			tag: tagName,
-		})
-
-		// 2. If the release exists, update its notes (body, name, draft, prerelease).
-		console.log('Existing release found. Updating release notes...')
-		releaseResponse = await octokit.repos.updateRelease({
-			...payload,
-			release_id: existingRelease.data.id,
-		})
-	} catch (error: unknown) {
-		const knownError = error as RequestError
-		// 3. If fetching the release fails (typically a 404), create a new release.
-		if ((knownError as RequestError).status === 404) {
-			console.log(`No existing release found. Creating new release notes for tag ${tagName}...`)
-			releaseResponse = await octokit.repos.createRelease(payload)
-		} else {
-			// Re-throw if it's an unexpected error
-			console.error('An error occurred during release operations:', error)
-			throw knownError
-		}
-	}
-
+	console.log(`Checking for existing release with tag: ${payload.tag_name}...`)
 	console.log(`Release successful. View it here: ${releaseResponse.data.html_url}`)
 }

@@ -1,21 +1,19 @@
 import { $ } from 'bun'
-import { defineConfig } from 'bunup'
+import { type DefineConfigItem, defineConfig } from 'bunup'
 import { exports } from 'bunup/plugins'
 
+// 🩼
+type WithRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>
+
 export default defineConfig({
-	entry: ['src/index.ts', 'src/cli/gitpaper.ts'],
-	dts: { entry: ['src/index.ts'] },
-	// @ts-expect-error
-	shims: true,
-	plugins: [exports()],
-
 	banner: '// Built with bunup (https://bunup.dev)',
-
+	dts: { entry: ['src/index.ts'] },
+	entry: ['src/index.ts', 'src/cli/gitpaper.ts'],
 	async onSuccess() {
 		await Promise.all([
 			$`sed -z -i 's/export {[[:space:]]*generateChangelog[[:space:]]*};\n//g'  dist/index.mjs`,
 
-			(async () => {
+			(async (): Promise<void> => {
 				// Add shebang for the bin entrypoint
 				await $`sed -i '1s;^;#!/usr/bin/env node\n;' dist/cli/gitpaper.mjs`
 
@@ -27,4 +25,7 @@ export default defineConfig({
 			$`mkdir -p dist/ai && cp -r src/ai/prompts dist/ai/prompts`,
 		])
 	},
-})
+	plugins: [exports()],
+	shims: true,
+	// oxlint-disable-next-line typescript/no-unnecessary-type-assertion
+}) as DefineConfigItem | WithRequired<DefineConfigItem, 'name'>[]

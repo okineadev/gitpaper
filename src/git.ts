@@ -1,10 +1,11 @@
 import { $, execa } from 'execa'
+
 import type { ChangeType, GitCommit, GitCommitAuthor, RawGitCommit, RepoInfo } from './types'
 
 /**
  * Gets the current repository name and owner using gh CLI (preferred) or git commands
  * @returns - Object containing owner and repository name
- * @throws Error if not in a git repository or commands fail
+ * @throws {Error} if not in a git repository or commands fail
  */
 export async function getCurrentRepoInfo(): Promise<RepoInfo> {
 	const remoteUrl = (await $`git config --get remote.origin.url`).stdout
@@ -13,10 +14,14 @@ export async function getCurrentRepoInfo(): Promise<RepoInfo> {
 		throw new Error('No remote origin URL found')
 	}
 
-	const [owner, repo] = remoteUrl
-		.replace(/\.git$/, '')
+	// oxlint-disable-next-line one-var
+	const LAST_TWO_PARTS_OF_REMOTE_URL = -2
+	// @ts-expect-error: Array destructuring requires type narrowing
+	// oxlint-disable-next-line one-var
+	const [owner, repo]: [string, string] = remoteUrl
+		.replace(/\.git$/u, '')
 		.split('/')
-		.slice(-2)
+		.slice(LAST_TWO_PARTS_OF_REMOTE_URL)
 
 	return { owner, repo }
 }
@@ -24,7 +29,9 @@ export async function getCurrentRepoInfo(): Promise<RepoInfo> {
 export async function getLastGitTag(to: string): Promise<string | undefined> {
 	try {
 		return (await execa('git', ['describe', '--abbrev=0', '--tags', `${to}^`])).stdout
-	} catch {}
+	} catch {
+		return undefined
+	}
 }
 
 export async function getFirstGitCommit(): Promise<string> {
@@ -34,22 +41,20 @@ export async function getFirstGitCommit(): Promise<string> {
 export async function getCurrentGitBranch(): Promise<string> {
 	return (await $`git tag --points-at HEAD`).stdout || (await $`git rev-parse --abbrev-ref HEAD`).stdout
 }
+// This is the most safe implementation of pulling data about commit from the `git` command
+// It may be a little slower, but it's better than constantly worrying that some fool
+// will put the `|` symbol or another divider we use in his name and break the commit parsing
+// in some repository forever.
+// The chance is low, but never zero.
+const showCommitField = async (commitHash: string, format: string): Promise<string> =>
+	(await $`git --no-pager show ${commitHash} -s --format=%${format}`).stdout
 
-export async function getGitDiff(from: string | undefined, to = 'HEAD'): Promise<RawGitCommit[]> {
-	const fromTo = from ? `${from}...${to}` : to
+export async function getGitDiff(from: string, to = 'HEAD'): Promise<RawGitCommit[]> {
+	const fromTo = from ? `${from}...${to}` : to,
+		commits = (await $`git --no-pager log ${fromTo} --oneline --pretty=format:%H`).stdout.split('\n')
 
-	const commits = (await $`git --no-pager log ${fromTo} --oneline --pretty=format:%H`).stdout.split('\n')
-
-	return await Promise.all(
+	return Promise.all(
 		commits.map(async (commit): Promise<RawGitCommit> => {
-			// This is the most safe implementation of pulling data about commit from the `git` command
-			// It may be a little slower, but it's better than constantly worrying that some fool
-			// will put the `|` symbol or another divider we use in his name and break the commit parsing
-			// in some repository forever.
-			// The chance is low, but never zero.
-			const showCommitField = async (commitHash: string, format: string) =>
-				(await $`git --no-pager show ${commitHash} -s --format=%${format}`).stdout
-
 			const [message, body, date, author, coAuthors /*, signingStatus */] = await Promise.all([
 				// 🗒️ https://git-scm.com/docs/pretty-formats
 				showCommitField(commit, 's'),
@@ -60,87 +65,96 @@ export async function getGitDiff(from: string | undefined, to = 'HEAD'): Promise
 						showCommitField(commit, 'an'),
 						showCommitField(commit, 'ae'),
 					])
-					return { name, email }
+					return { email, name }
 				})(),
 
 				(async (): Promise<GitCommitAuthor[]> => {
-					const coAuthors = (await showCommitField(commit, '(trailers:key=Co-Authored-By,valueonly)')).trim()
-					return coAuthors.length
-						? coAuthors.split('\n').map(
+					const theCoAuthors = (
+						await showCommitField(commit, '(trailers:key=Co-Authored-By,valueonly)')
+					).trim()
+					return theCoAuthors.length > 0
+						? theCoAuthors.split('\n').map(
 								(coAuthorString): GitCommitAuthor =>
-									// @ts-expect-error
-									coAuthorString.match(/^(?<name>[^s].+) (?:<(?<email>[^s].+[^s])>)$/i)
+									// @ts-expect-error: Regex groups type narrowing for co-author parsing
+									// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+									/^(?<name>[^s].+) (?:<(?<email>[^s].+[^s])>)$/iu.exec(coAuthorString)
 										.groups as unknown as GitCommitAuthor,
 							)
 						: []
 				})(),
-				// showCommitField(commit, 'G?'),
+				// ShowCommitField(commit, 'G?'),
 			])
 
 			return {
-				message,
+				author,
 				body,
+				coAuthors,
 				date,
 				hash: commit,
-				author,
-				coAuthors,
-				// signingStatus,
+				message,
+				// SigningStatus,
 			}
 		}),
 	)
 }
 
-export async function parseCommits(commits: RawGitCommit[]): Promise<GitCommit[]> {
-	const parsed = await Promise.all(commits.map(parseGitCommit))
-	return parsed.filter((c): c is GitCommit => Boolean(c))
-}
+// oxlint-disable-next-line one-var
+const emojiSequence = String.raw`\p{Extended_Pictographic}\uFE0F?(?:\u200D\p{Extended_Pictographic}\uFE0F?)*`,
+	markdownEmoji = ':[a-z_+]+:',
+	gitmoji = `(?:${markdownEmoji}|${emojiSequence})`,
+	// https://сonventionalcommits.org/en/v1.0.0/
+	ConventionalCommitRegex = new RegExp(
+		`^(?:${gitmoji}\\s)?` + // Optional emoji before type
+			`(?<type>[a-z]+)` + // Type
+			`(?:\\((?<scope>[^)]+)\\))?` + // Optional scope
+			`(?<breaking>!)?: ` + // Optional breaking
+			`(?:${gitmoji}\\s)?` +
+			`(?<description>.+)$`,
+		'ui',
+	)
 
-const emojiSequence = '\\p{Extended_Pictographic}\\uFE0F?(?:\\u200D\\p{Extended_Pictographic}\\uFE0F?)*'
-const markdownEmoji = ':[a-z_+]+:'
-const gitmoji = `(?:${markdownEmoji}|${emojiSequence})`
-
-// https://сonventionalcommits.org/en/v1.0.0/
-const ConventionalCommitRegex = new RegExp(
-	`^(?:${gitmoji}\\s)?` + // optional emoji before type
-		`(?<type>[a-z]+)` + // type
-		`(?:\\((?<scope>[^)]+)\\))?` + // optional scope
-		`(?<breaking>!)?: ` + // optional breaking
-		`(?:${gitmoji}\\s)?` +
-		`(?<description>.+)$`,
-	'ui',
-)
-
-// const humanRegex = /(?<name>[^\s].+) (?:<(?<email>[^\s].+[^\s])>)/gim
+// Const humanRegex = /(?<name>[^\s].+) (?:<(?<email>[^\s].+[^\s])>)/gim
 // const PullRequestRE = /\([ a-z]*(#\d+)\s*\)/gm
 // const IssueRE = /(#\d+)/gm
 
 function extractChangelogBody(body: string): string | undefined {
-	const match = body.match(/::: changelog\s*([\s\S]*?):::/im)
-	if (!match) return undefined
-	return match[1] ? match[1].trim() : undefined
+	const match = /::: changelog\s*(?<changelog>[\s\S]*?):::/imu.exec(body)
+	// @ts-expect-error: Regex groups optional chaining type narrowing
+	return match?.groups?.changelog?.trim()
 }
 
-export async function parseGitCommit(commit: RawGitCommit): Promise<GitCommit | null> {
+export async function parseGitCommit(commit: RawGitCommit): Promise<GitCommit | undefined> {
 	const match = commit.message.match(ConventionalCommitRegex)
 	if (!match) {
-		return null
+		return undefined
 	}
 
-	const type: ChangeType = (match.groups?.type as ChangeType) || ('' as ChangeType)
-	const hasBreakingBody = /breaking change:/i.test(commit.body)
+	// oxlint-disable-next-line one-var typescript/no-unsafe-type-assertion
+	const groups = match.groups as {
+		type?: ChangeType
+		breaking?: string
+		description: string
+		scope?: string
+	}
 
-	const scope = match.groups?.scope || ''
-
-	const isBreaking = Boolean(match.groups?.breaking || hasBreakingBody)
-	const subject = match.groups?.description as string
-
-	const changelogBody = extractChangelogBody(commit.body)
+	// oxlint-disable-next-line one-var
+	const type: ChangeType = groups.type ?? '',
+		hasBreakingBody = /breaking change:/iu.test(commit.body),
+		scope = groups.scope ?? '',
+		isBreaking = Boolean(groups.breaking ?? hasBreakingBody),
+		subject = groups.description,
+		changelogBody = extractChangelogBody(commit.body)
 	return {
 		...commit,
-		subject,
 		changelogBody,
-		type,
-		scope,
 		isBreaking,
+		scope,
+		subject,
+		type,
 	}
+}
+
+export async function parseCommits(commits: RawGitCommit[]): Promise<GitCommit[]> {
+	const parsedCommits = await Promise.all(commits.map(parseGitCommit))
+	return parsedCommits.filter((commit): commit is GitCommit => Boolean(commit))
 }

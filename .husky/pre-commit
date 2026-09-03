@@ -1,2 +1,2 @@
-bunx lint-staged
+bunx --bun nano-staged
 # bun run test

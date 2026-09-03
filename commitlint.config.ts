@@ -13,10 +13,11 @@ const COMMITLINT_HELP_URL =
  * @returns A tuple where the first element is a boolean indicating if the rule passed, and the second is an
  *   optional error message.
  */
+// oxlint-disable-next-line one-var
 const subjectLowercaseFirst: Rule = async (parsed: Readonly<Commit>) => {
 	// Find the first alphabetic character
 	if (typeof parsed.subject === 'string' && parsed.subject.length === 0) {
-		const match = /[a-z]/i.exec(parsed.subject)
+		const match = /[a-z]/iu.exec(parsed.subject)
 
 		if (match) {
 			const [firstLetter] = match
@@ -30,6 +31,7 @@ const subjectLowercaseFirst: Rule = async (parsed: Readonly<Commit>) => {
 }
 //#endregion
 
+// oxlint-disable-next-line one-var
 const Configuration: UserConfig = {
 	extends: ['@commitlint/config-conventional'],
 	helpUrl: COMMITLINT_HELP_URL,

@@ -5,7 +5,7 @@ export interface Section {
 	commits: GitCommit[]
 }
 
-export type ChangeType = keyof typeof defaultConfig.types
+export type ChangeType = keyof ResolvedGitpaperConfiguration['types']
 
 export interface GitCommitAuthor {
 	/**
@@ -17,13 +17,16 @@ export interface GitCommitAuthor {
 	email: string
 }
 
+// oxlint-disable-next-line typescript/ban-types
 type CanBeDifferent<T> = T | (T & {})
 
-export interface ResolvedGitCommitAuthor extends GitCommitAuthor {
+export interface GitHubUser {
 	// Name from GitHub can be different
-	name: CanBeDifferent<GitCommitAuthor['name']>
+	name: CanBeDifferent<GitCommitAuthor['name']> | undefined
 	username: string
 }
+
+export interface ResolvedGitCommitAuthor extends GitCommitAuthor, GitHubUser {}
 
 export interface RawGitCommit {
 	message: string
@@ -107,7 +110,7 @@ export interface GitpaperConfiguration {
 	 * excludeContributors: ["octocat", "octocat@github.com"]
 	 * excludeContributors: (author) => author.name === "octocat" || author.email.endsWith("@bots.com")
 	 */
-	excludeContributors?: Array<string> | ((author: GitCommitAuthor) => boolean)
+	excludeContributors?: string[] | ((author: GitCommitAuthor) => boolean)
 
 	/**
 	 * Whether to resolve contributors GitHub.
@@ -117,6 +120,10 @@ export interface GitpaperConfiguration {
 	resolveContributorsGitHub?: boolean
 }
 
-export type ResolvedGitpaperConfiguration = Required<Omit<GitpaperConfiguration, 'repo'>> & {
+export type NotYetResolvedGitpaperConfiguration = Required<Omit<GitpaperConfiguration, 'repo'>> & {
+	repo?: RepoInfo | string
+}
+
+export type ResolvedGitpaperConfiguration = Required<NotYetResolvedGitpaperConfiguration> & {
 	repo: RepoInfo
 }

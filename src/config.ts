@@ -1,47 +1,53 @@
+import type {
+	GitpaperConfiguration,
+	ResolvedGitpaperConfiguration,
+	NotYetResolvedGitpaperConfiguration,
+} from './types.d'
+
 import { getCurrentRepoInfo } from './git'
-import type { GitpaperConfiguration, ResolvedGitpaperConfiguration } from './types.d'
 
 export function defineConfig(config: GitpaperConfiguration): GitpaperConfiguration {
 	return config
 }
 
 export const defaultConfig: GitpaperConfiguration = {
-	types: {
-		feat: '🚀 Enhancements',
-		perf: '⚡ Performance',
-		fix: '🩹 Fixes',
-		types: '🌊 Types',
-	},
 	contributors: true,
 	emoji: true,
+	excludeBots: true,
+	excludeContributors: [],
 	experimental: {
 		generateOverview: false,
 	},
-	excludeBots: true,
 	resolveContributorsGitHub: true,
+	types: {
+		feat: '🚀 Enhancements',
+		fix: '🩹 Fixes',
+		perf: '⚡ Performance',
+		types: '🌊 Types',
+	},
 } as const
 
-export async function resolveConfig(
-	options: GitpaperConfiguration & { generateOverview?: boolean },
-): Promise<ResolvedGitpaperConfiguration> {
-	const { loadConfig } = await import('c12')
-
-	const config = (await loadConfig<GitpaperConfiguration>({
-		name: 'gitpaper',
-		defaults: defaultConfig,
-		overrides: options,
-		packageJson: 'gitpaper',
-	}).then((resolvedConfig) => resolvedConfig.config || defaultConfig)) as Required<GitpaperConfiguration>
+export async function resolveConfig(options: GitpaperConfiguration): Promise<ResolvedGitpaperConfiguration> {
+	const { loadConfig } = await import('c12'),
+		{ config } = await loadConfig<NotYetResolvedGitpaperConfiguration>({
+			// @ts-expect-error - FIXME:
+			defaults: defaultConfig,
+			name: 'gitpaper',
+			// @ts-expect-error - FIXME:
+			overrides: options,
+			packageJson: 'gitpaper',
+		})
 
 	if (typeof config.repo === 'string') {
-		const [owner, repo] = config.repo.split('/')
-		config.repo = { owner, repo }
+		// @ts-expect-error: String split type narrowing for repo parsing
+		const [owner, repoName]: [string, string] = config.repo.split('/')
+		config.repo = { owner, repo: repoName }
 	} else {
-		config.repo = config.repo || (await getCurrentRepoInfo())
+		config.repo ??= await getCurrentRepoInfo()
 	}
 
-	// Overrides
-	config.experimental.generateOverview = options.generateOverview || config.experimental?.generateOverview
-
-	return config as ResolvedGitpaperConfiguration
+	return {
+		...config,
+		repo: config.repo,
+	}
 }

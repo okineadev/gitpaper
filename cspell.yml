@@ -1,26 +1,38 @@
-$schema: https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json
-
 words:
-  - bunup
-  - gitpaper
-  - blockquotes
-
-ignoreWords:
-  - scule
   - octocat
+  - gitpaper
+  - gitmoji
+  - oxlint
+  - oxfmt
+  - bunup
+  - scule
+  - blockquotes
 
 overrides:
   - filename: '**/package.json'
     words:
       - Okinea
+      - tsgolint
+
+  - filename: readme.md
+    words:
+      - Zhou
+      - Nakamura
+      - Viktor
+      - Petrov
 
 languageSettings:
   - languageId: markdown
     words:
       - srcset
+      - shadcn
+      - Slidev
+      - Elysia
+      - Rolldown
 
 ignorePaths:
   - .github/**/*.yml
   - tests/**/__snapshots__/
   - cspell.yml
   - LICENSE
+  - '*.svg'

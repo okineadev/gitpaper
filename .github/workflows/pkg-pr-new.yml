@@ -11,7 +11,7 @@ on:
       - biome.jsonc
       - bun.lock
       - tsconfig*.json
-      - "!**/*.md"
+      - '!**/*.md'
 
   pull_request:
     paths:
@@ -22,7 +22,7 @@ on:
       - biome.jsonc
       - bun.lock
       - tsconfig*.json
-      - "!**/*.md"
+      - '!**/*.md'
 
 jobs:
   pkg-pr-new:

@@ -1,0 +1,31 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"semi": false,
+	"singleQuote": true,
+	"printWidth": 110,
+	"useTabs": true,
+	"tabWidth": 4,
+	"ignorePatterns": ["*.hbs"],
+
+	// "jsdoc": {
+	// 	"descriptionWithDot": true,
+	// 	"preferCodeFences": true,
+	// 	"separateReturnsFromParam": true
+	// },
+
+	"overrides": [
+		{
+			"files": ["*.yml"],
+			"options": {
+				"tabWidth": 2
+			}
+		},
+		{
+			"files": ["*.md"],
+			"options": {
+				"useTabs": false,
+				"tabWidth": 2
+			}
+		}
+	]
+}
