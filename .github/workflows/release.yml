@@ -9,6 +9,12 @@ on:
         default: conventional
         type: string
 
+      run-tests:
+        description: Run tests before release
+        required: false
+        default: false
+        type: boolean
+
 # Minimal read permissions at workflow level
 permissions: {}
 
@@ -17,6 +23,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    if: github.event.inputs.run-tests == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tests.yml
+
   release:
     name: 🚀 Release
     needs: test

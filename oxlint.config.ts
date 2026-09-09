@@ -18,7 +18,7 @@ export default defineConfig({
 	},
 	overrides: [
 		{
-			files: ['tests/**/*.ts'],
+			files: ['test/**/*.ts', 'tests/**/*.ts'],
 			rules: {
 				'id-length': 'off',
 				'max-lines': 'off',
@@ -27,8 +27,11 @@ export default defineConfig({
 				'no-magic-numbers': 'off',
 				'no-shadow': 'off',
 				'no-unsafe-type-assertion': 'off',
+				'one-var': 'off',
+				'sort-keys': 'off',
 				'typescript/ban-ts-comment': ['warn', { 'ts-expect-error': false }],
 				'typescript/no-unsafe-assignment': 'off',
+				'typescript/no-unsafe-call': 'off',
 				'typescript/no-unsafe-member-access': 'off',
 			},
 		},

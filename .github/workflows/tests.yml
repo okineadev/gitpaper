@@ -1,0 +1,61 @@
+name: Tests
+
+on: [workflow_call]
+
+permissions: {}
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 🧪 Tests
+
+    runs-on: ubuntu-slim
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          # Download only the necessary files
+          sparse-checkout: |
+            patches/
+            src/
+            tests/
+            .gitignore
+            bunup.config.ts
+            package.json
+            .oxfmtrc.json
+            oxlint.config.ts
+            bun.lock
+            bunfig.toml
+            cspell.yml
+            tsconfig*.json
+            # !**/*.md
+            # tests/test-assets/*.md
+
+      - name: 🔧 Setup Bun
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+
+      - name: 📦 Install dependencies
+        run: bun ci
+
+      - name: 🗞️ Lint
+        run: |
+          bun run lint
+          bun run format:check
+
+      - name: 🗞️ Run Woke linter
+        uses: get-woke/woke-action@b2ec032c4a2c912142b38a6a453ad62017813ed0 # v0
+        with:
+          # Cause the check to fail on any broke rules
+          fail-on-error: true
+
+      - name: 🧪 Run tests
+        run: bun run test
