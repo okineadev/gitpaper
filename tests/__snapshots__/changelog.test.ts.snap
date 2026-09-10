@@ -1,0 +1,32 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`renders a complete changelog snapshot 1`] = `
+"### &nbsp;&nbsp;&nbsp; 🚀 Enhancements
+
+<p></p>
+
+- **release:** Publish the new release workflow &nbsp;-&nbsp; by **Alice** [<samp>(12345)</samp>](https://github.com/some_user/repo/commit/1234567890abcdef)
+> This is a deliberately long release note that explains the user-facing behavior in detail.
+> 
+> It preserves blank lines and supports examples:
+> 
+> \`\`\`ts
+> const enabled = true
+> console.log(enabled)
+> \`\`\`
+> 
+> The final paragraph confirms that the migration is safe.
+
+### &nbsp;&nbsp;&nbsp; 🩹 Fixes
+
+- **config:** Rename the release configuration key &nbsp;-&nbsp; by **Bob**, **Carol**, and **Dan** [<samp>(fedcb)</samp>](https://github.com/some_user/repo/commit/fedcba0987654321)
+
+### &nbsp;&nbsp;&nbsp;💖 Contributors
+
+- **Alice**
+- **Carol**
+- **Dan**
+- **Bob**
+
+##### &nbsp;&nbsp;&nbsp;&nbsp; [View changes on GitHub](https://github.com/some_user/repo/compare/v1.2.0...v1.3.0)"
+`;
