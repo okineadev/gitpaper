@@ -46,7 +46,11 @@ export default defineConfig({
 	],
 	plugins: ['import', 'jsdoc', 'promise', 'node', 'oxc', 'unicorn', 'eslint', 'typescript'],
 	rules: {
-		'capitalized-comments': ['warn', 'always', { ignoreConsecutiveComments: true }],
+		'capitalized-comments': [
+			'warn',
+			'always',
+			{ ignoreConsecutiveComments: true, ignorePattern: 'cspell:' },
+		],
 		'func-style': [
 			'warn',
 			'declaration',

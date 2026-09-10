@@ -51,6 +51,7 @@ const showCommitField = async (commitHash: string, format: string): Promise<stri
 
 export async function getGitDiff(from: string, to = 'HEAD'): Promise<RawGitCommit[]> {
 	const fromTo = from ? `${from}...${to}` : to,
+		// cspell:disable-next-line
 		commits = (await $`git --no-pager log ${fromTo} --oneline --pretty=format:%H`).stdout.split('\n')
 
 	return Promise.all(
@@ -69,9 +70,8 @@ export async function getGitDiff(from: string, to = 'HEAD'): Promise<RawGitCommi
 				})(),
 
 				(async (): Promise<GitCommitAuthor[]> => {
-					const theCoAuthors = (
-						await showCommitField(commit, '(trailers:key=Co-Authored-By,valueonly)')
-					).trim()
+					const theCoAuthors = // cspell:disable-next-line
+						(await showCommitField(commit, '(trailers:key=Co-Authored-By,valueonly)')).trim()
 					return theCoAuthors.length > 0
 						? theCoAuthors.split('\n').map(
 								(coAuthorString): GitCommitAuthor =>

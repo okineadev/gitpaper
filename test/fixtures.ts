@@ -32,6 +32,6 @@ export const config = (
 	overrides: Partial<ResolvedGitpaperConfiguration> = {},
 ): ResolvedGitpaperConfiguration => ({
 	...(defaultConfig as NotYetResolvedGitpaperConfiguration),
-	repo: { owner: 'okineadev', repo: 'gitpaper' },
+	repo: { owner: 'some_user', repo: 'repo' },
 	...overrides,
 })
