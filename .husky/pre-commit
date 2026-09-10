@@ -1,2 +1,2 @@
 bunx --bun nano-staged
-# bun run test
+bun run test
