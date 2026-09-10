@@ -18,7 +18,7 @@ export default defineConfig({
 	},
 	overrides: [
 		{
-			files: ['test/**/*.ts', 'tests/**/*.ts'],
+			files: ['tests/**/*.ts'],
 			rules: {
 				'id-length': 'off',
 				'max-lines': 'off',

@@ -32,6 +32,7 @@ languageSettings:
 
 ignorePaths:
   - .github/**/*.yml
+  - .gitignore
   - tests/**/__snapshots__/
   - cspell.yml
   - LICENSE

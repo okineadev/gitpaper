@@ -9,7 +9,6 @@
 	// Setup linting for tests later
 	"include": [
 		"src/**/*.ts",
-		"test/**/*.ts",
 		"tests/**/*.ts",
 		"nano-staged.config.ts",
 		"bunup.config.ts",

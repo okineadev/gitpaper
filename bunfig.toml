@@ -6,4 +6,4 @@ bun = true
 
 [test]
 onlyFailures = true
-preload = ["./test/preload.ts", "console-fail-test/setup"]
+preload = ["./tests/preload.ts", "console-fail-test/setup"]
