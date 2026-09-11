@@ -1,6 +1,6 @@
 {
 	"name": "gitpaper",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "📰 The first ever generator of non-boring and actually detailed release notes",
 	"keywords": [
 		"changelog",
